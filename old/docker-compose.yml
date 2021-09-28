@@ -1,0 +1,56 @@
+version: "3"
+services:
+  postgres:
+    image: "postgres:latest"
+    environment:
+      - POSTGRES_PASSWORD=postgres_password
+
+  redis:
+    image: "redis:latest"
+
+  nginx:
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nginx #look inside the nginx folder
+    ports:
+      - "3050:80"
+
+  api:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./server #look inside the server folder
+    volumes:
+      - /app/node_modules #a bookmark to hold on app/node_modules, so we don't overwrite this folder with any node_modules folder within the server folder
+      - ./server:/app #so any changes made in the server folder, redirect it using : to the /app folder which is the WORKDIR specified in the Dockerfile.dev in the server folder
+      #so basically we set up a relationship between server and app folders, but said don't touch the app/node_modules folder
+    environment: #these are the environments listed in server/keys.js
+      - REDIST_HOST=redis
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
+
+  client:
+    stdin_open: true
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client #look inside the client folder
+    volumes:
+      - /app/node_modules #a bookmark to hold on app/node_modules, so we don't overwrite this folder with any node_modules folder within the client folder
+      - ./client:/app #so any changes made in the client folder, redirect it using : to the /app folder which is the WORKDIR specified in the Dockerfile.dev in the client folder
+      #so basically we set up a relationship between client and app folders, but said don't touch the app/node_modules folder
+
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker #look inside the worker folder
+    volumes:
+      - /app/node_modules #a bookmark to hold on app/node_modules, so we don't overwrite this folder with any node_modules folder within the worker folder
+      - ./worker:/app #so any changes made in the worker folder, redirect it using : to the /app folder which is the WORKDIR specified in the Dockerfile.dev in the client folder
+      #so basically we set up a relationship between worker and app folders, but said don't touch the app/node_modules folder
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
