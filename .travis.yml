@@ -1,0 +1,31 @@
+language: generic
+
+#Anytime we use docker, we're using ourselves super user permissions
+sudo: required
+
+services:
+  #telling travis CI to automatically install a copy of docker into our running container
+  - docker
+
+before_install:
+  #below is the command that should be executed to build our docker image using Dockerfile.dev in our current working directory using "."
+  #also providing it a tag name using -t of "hjmok/react-test" so we don't have to worry about a long ID. Instead of using "." to specify our current directory, we're saying look inside client directory to get build context
+  - docker build -t hjmok/react-test -f ./client/Dockerfile.dev ./client
+
+#script section contains all the commands needed to run the test suites
+script:
+  - docker run -e CI=true hjmok/react-test npm test
+
+#after_success section has the configuration that's going to build the production version of all our projects and push them to Docker Hub
+after_success:
+  - docker build -t hjmok/multi-client ./client
+  - docker build -t hjmok/multi-nginx ./nginx
+  - docker build -t hjmok/multi-server ./server
+  - docker build -t hjmok/multi-worker ./worker
+  #Log in to the Docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  #Now we're going to take the images built above and push them to Docker Hub
+  - docker push hjmok/multi-client
+  - docker push hjmok/multi-nginx
+  - docker push hjmok/multi-server
+  - docker push hjmok/multi-worker
